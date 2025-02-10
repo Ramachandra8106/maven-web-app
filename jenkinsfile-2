@@ -1,0 +1,46 @@
+pipeline {
+    agent any
+
+    stages {
+        stage('Git Checkout scm') {
+            steps {
+                git 'https://github.com/Ramachandra8106/maven-web-app.git'
+            }
+        }
+        stage('Compile the code') {
+            steps {
+                sh 'mvn compile'
+            }
+        }
+        stage('test the code') {
+            steps {
+                sh 'mvn test'
+            }
+        }
+        stage('Sonarqube analysis') {
+            steps {
+                withSonarQubeEnv("sonar") {
+                sh 'mvn sonar:sonar'
+                }
+            }
+        }
+        stage('package the code') {
+            steps {
+                sh 'mvn package'
+            }
+        }
+       stage('Upload artifact to Nexus Repository') {
+            steps {
+               nexusArtifactUploader artifacts: [[artifactId: '01-maven-web-app', classifier: '', file: '/var/lib/jenkins/workspace/CICD-PIPE-LINE-PROJECT/target/maven-web-app.war', type: 'war']], credentialsId: 'nexus_cred', groupId: 'in.teksit', nexusUrl: '13.234.136.7:8081/', nexusVersion: 'nexus3', protocol: 'http', repository: 'teksit-release-repository', version: '3.0-RELEASE'
+            }
+        }
+        stage('Deploy to Tomcat server') {
+            steps {
+              sshagent(['tomcat_privatekey']) {
+                    sh 'scp -o StrictHostKeyChecking=no /var/lib/jenkins/workspace/CICD-PIPE-LINE-PROJECT/target/maven-web-app.war root@13.127.252.167:/opt/tomcat/webapps/'
+                }
+            }
+        }
+
+    }
+}
